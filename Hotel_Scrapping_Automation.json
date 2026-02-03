@@ -1,0 +1,590 @@
+{
+  "name": "Hotel_Scrapping_Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "SOP Builder",
+        "formDescription": "enter the webiste ",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Website",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "id": "a0f4c06d-f57d-4185-bcfd-46452b97fc82",
+      "name": "On form submission",
+      "webhookId": "69778f8f-c4e8-4f44-89c3-90bfc6686071"
+    },
+    {
+      "parameters": {
+        "resource": "MapSearch",
+        "operation": "map",
+        "url": "={{ $json.Website }}",
+        "sitemap": "skip",
+        "limit": 200,
+        "requestOptions": {}
+      },
+      "type": "@mendable/n8n-nodes-firecrawl.firecrawl",
+      "typeVersion": 1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "c77bf776-12f5-4c46-b2ae-ddecce1acfce",
+      "name": "Map a website to discover all URLs",
+      "credentials": {
+        "firecrawlApi": {
+          "id": "pVsNVOUrCW7i8Yq3",
+          "name": "FreeFirecrawl account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "links",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        416,
+        0
+      ],
+      "id": "bdcfbe77-bf24-4c5b-bc45-13bf524061e7",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "80073e02-819a-4bac-a71f-3fd1dd599b14",
+              "leftValue": "={{ $json.url}}",
+              "rightValue": "gallery",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "15beba3d-fdb9-4d58-80fa-3208a5accb28",
+              "leftValue": "={{ $json.url}}",
+              "rightValue": "media",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "9f0ee378-cb8f-4633-b55d-d1a0fffda445",
+              "leftValue": "={{ $json.url}}",
+              "rightValue": "uploads",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        624,
+        0
+      ],
+      "id": "be37b855-ff2e-4b12-afec-7f7af7d93797",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "operation": "scrape",
+        "url": "={{ $json.url }}",
+        "scrapeOptions": {
+          "options": {
+            "formats": {
+              "format": [
+                {}
+              ]
+            },
+            "headers": {}
+          }
+        },
+        "requestOptions": {}
+      },
+      "type": "@mendable/n8n-nodes-firecrawl.firecrawl",
+      "typeVersion": 1,
+      "position": [
+        816,
+        0
+      ],
+      "id": "ba4429a9-c269-43ab-97cb-3164449340f2",
+      "name": "Scrape a URL and get content as markdown or other formats",
+      "retryOnFail": true,
+      "credentials": {
+        "firecrawlApi": {
+          "id": "pVsNVOUrCW7i8Yq3",
+          "name": "FreeFirecrawl account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "211aa5b5-aee8-435b-8980-11b139b6e2c0",
+              "leftValue": "={{ $json.data.metadata.statusCode }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        -16,
+        256
+      ],
+      "id": "18bb90bb-5e85-4852-9f1b-0f52f921c2c0",
+      "name": "Filter1"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "data",
+              "renameField": true,
+              "outputFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        192,
+        256
+      ],
+      "id": "c5b752d0-6918-43e5-8c78-333a2399ec35",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "01481777-6e65-4804-ba85-b8912092241f",
+              "name": "scraped_website_result",
+              "value": "=Website: {{ $('On form submission').item.json.Website }}\n\n-----\n\n{{ $json.data.map(item => {\n  let result = '';\n\n  result += 'Page Title: ' + item.metadata.title + '\\n';\n  result += 'Page Description: ' + item.metadata.description + '\\n';\n  result += 'Page Url: ' + item.metadata.url + '\\n\\n';\n\n  result += item.markdown;\n\n  return result;\n}).join('\\n-----\\n') }}\n",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        400,
+        256
+      ],
+      "id": "88ed4319-c208-42e8-8c01-ad9c26f08dd5",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=# ROLE\nYou are an information architect and technical writer. Your mission is to synthesize a complete set of hotel website pages (provided as Markdown) into a comprehensive, deduplicated Support Encyclopedia.\n\nThis encyclopedia will be the single source of truth for future guest-support and automation agents. You must preserve all unique information from the source pages while structuring it logically for fast, reliable retrieval.\n\n---\n\n# PRIME DIRECTIVES\n\n1. **Information Integrity (NON-NEGOTIABLE)**  \n   All unique facts, policies, numbers, names, hours, amenities, rules, and other key details from the source pages MUST be captured and placed in the appropriate encyclopedia section.\n\n   If the same information appears on multiple pages (e.g., phone number, address, check-in time), store it once and cite ALL source page_ids where it appears.\n\n2. **Organized for Hotel Support (PRIMARY GOAL)**  \n   The output is not an index or summary — it IS the encyclopedia itself.  \n   Structure the content so a support agent (human or AI) can directly answer guest questions such as:\n   - Check-in / check-out\n   - Rooms & suites\n   - Dining\n   - Amenities\n   - Location & transport\n   - Policies\n   - Reviews & guest feedback\n   - Contact & support\n\n3. **No Hallucinations**  \n   Do NOT invent, infer, estimate, or assume information (prices, timings, rules, services).  \n   If information is missing or unclear, explicitly write: **UNKNOWN**.\n\n4. **Deterministic Structure**  \n   Follow a consistent, predictable structure.  \n   Use stable section names and repeatable formatting so the output is machine-reliable and human-readable.\n\n5. **Source Traceability (MANDATORY)**  \n   EVERY factual statement in the encyclopedia must reference the `page_id`(s) it came from.  \n   Conversely, ALL substantive information from EVERY source page must be included somewhere in the encyclopedia. Nothing may be dropped.\n\n6. **Language Preservation**  \n   When quoting policies, names, or official text, preserve the original wording exactly.  \n   The organizing layer (section headers, summaries, labels) should use the site’s primary language.\n\n---\n\n# INPUT FORMAT\n\nYou will receive ONE batch containing ALL pages of a single hotel website.\n\nThis is the ONLY input.  \nThere is NO other metadata.\n\nThe pages will be provided exactly in the following block:\n\n<<<PAGES\n{{ $json.scraped_website_result }}\n>>>\n\nEach page contains Markdown content and may include title, description, URL, and main body text.\n\n---\n\n# STABLE PAGE IDS (REQUIRED)\n\nFor each source page, generate a `page_id` using these rules:\n\n- Based on the page title\n- Lowercase\n- Kebab-case\n- ASCII alphanumerics and hyphens only\n- Replace spaces with hyphens\n- Strip punctuation\n- If duplicates occur, append `-2`, `-3`, etc., in order of appearance\n\nThese `page_id`s MUST be used for citation throughout the encyclopedia.\n\n---\n\n# OUTPUT REQUIREMENTS\n\nProduce a **Support Encyclopedia** with:\n\n- Clearly defined sections (e.g., Overview, Rooms, Dining, Amenities, Policies, Reviews, Contact)\n- Deduplicated facts\n- Bullet points or short paragraphs for fast retrieval\n- Explicit citations to `page_id` for every fact\n- No references to “the source text” or “the page above”\n- No hallucinations\n- No missing content\n\nThe output must be clean, structured, deterministic, and ready for direct use by AI agents and support systems.\n",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        592,
+        272
+      ],
+      "id": "4d72a27c-d73c-411c-90ae-ba3acc031c0b",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('When chat message received').item.json.chatInput }}",
+        "options": {
+          "systemMessage": "=You are a hotel support agent.\n\nYou must answer the user's question using ONLY the hotel knowledge provided below.\nIf the answer is not present in the knowledge, respond with \"UNKNOWN\".\nDo not guess or hallucinate.\n\nHOTEL KNOWLEDGE:\n-{{ $json.knowledge }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        528,
+        640
+      ],
+      "id": "6e8f0c34-871f-4e3d-b2cf-8e12d67c8494",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatCohere",
+      "typeVersion": 1,
+      "position": [
+        352,
+        864
+      ],
+      "id": "f8b9c1c2-585b-43ea-9859-4829453feff9",
+      "name": "Cohere Chat Model",
+      "credentials": {
+        "cohereApi": {
+          "id": "0bv3pxboCt9LxGj8",
+          "name": "trial_test"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        64,
+        640
+      ],
+      "id": "4c19e606-96b1-48ea-926c-e938fcadedba",
+      "name": "When chat message received",
+      "webhookId": "dc17e356-aa62-47cf-9cf2-9fef697c69af"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ee6cf802-7480-437d-9157-8fc748009aef",
+              "name": "result",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        944,
+        256
+      ],
+      "id": "12fa3578-26a3-434f-b00f-d5e0a8f16082",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        544,
+        912
+      ],
+      "id": "54ba7262-0370-4cca-9cd8-2853757a15d7",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "description": "Reason about the user’s question using the Support Encyclopedia.\n\nSteps:\n1. Identify which encyclopedia section is relevant (rooms, dining, amenities, policies, etc.).\n2. Use only facts present in the encyclopedia.\n3. If multiple pages mention the same fact, prefer the most specific one.\n4. If information is missing, respond with \"UNKNOWN\" instead of guessing.\n5. Do not hallucinate prices, timings, or policies.\n6. Keep the answer concise and support-oriented.\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1.1,
+      "position": [
+        768,
+        896
+      ],
+      "id": "41dc849f-8d1d-4949-b9f1-f54886dc8bc7",
+      "name": "Think"
+    },
+    {
+      "parameters": {
+        "tableId": "hotels",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "knowledge",
+              "fieldValue": "={{ $json.result }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1232,
+        272
+      ],
+      "id": "491f5dae-e4a5-48ce-8d35-929e15bb3e11",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "XPr8vxyoNgXsLKRd",
+          "name": "N8N_pk"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "hotels",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "hotel_slug",
+              "keyValue": "crowne-plaza-gurgaon"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        272,
+        560
+      ],
+      "id": "fd942a90-a3eb-42a4-886b-2235ea1b5a3b",
+      "name": "Get a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "XPr8vxyoNgXsLKRd",
+          "name": "N8N_pk"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Map a website to discover all URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map a website to discover all URLs": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Scrape a URL and get content as markdown or other formats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape a URL and get content as markdown or other formats": {
+      "main": [
+        [
+          {
+            "node": "Filter1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter1": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cohere Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Get a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Think": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        []
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row": {
+      "main": [
+        []
+      ]
+    },
+    "Get a row": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "cdb7f8a9-59aa-42fa-b77b-bb7f9d70271f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b273ccfc392ae80a42382cfd0884614af41b87dd7b84f8cffd72e4a789a64ec9"
+  },
+  "id": "TM1ykrYcuI_Xukm2_w9-U",
+  "tags": []
+}
